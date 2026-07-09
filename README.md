@@ -1,4 +1,4 @@
-Knowladge Graph RAG
+# Knowladge Graph RAG
 
                 [User App / UI]
                       |
