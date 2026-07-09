@@ -1,3 +1,5 @@
+Knowladge Graph RAG
+
                 [User App / UI]
                       |
                       | (REST / WebSocket)
