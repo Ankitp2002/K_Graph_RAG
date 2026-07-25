@@ -217,3 +217,4 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 scratch_project_setup.sh
+plan.txt

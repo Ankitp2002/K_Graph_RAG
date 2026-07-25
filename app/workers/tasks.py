@@ -8,14 +8,13 @@ from app.core.config import settings
 from app.db.connections import qdrant_client, neo4j_driver
 
 celery_app = Celery(
-    "tasks",
-    broker=settings.CELERY_BROKER_URL,
-    backend=settings.CELERY_RESULT_BACKEND
+    "tasks", broker=settings.CELERY_BROKER_URL, backend=settings.CELERY_RESULT_BACKEND
 )
 
 # Load spaCy NLP model for Local Entity Recognition
 nlp = spacy.load("en_core_web_sm")
 embeddings_model = OpenAIEmbeddings(model="text-embedding-3-small")
+
 
 @celery_app.task(name="process_and_ingest_document")
 def process_and_ingest_document(document_text: str, doc_id: str):
@@ -30,7 +29,7 @@ def process_and_ingest_document(document_text: str, doc_id: str):
     if settings.QDRANT_COLLECTION not in collections:
         qdrant_client.create_collection(
             collection_name=settings.QDRANT_COLLECTION,
-            vectors_config=VectorParams(size=1536, distance=Distance.COSINE)
+            vectors_config=VectorParams(size=1536, distance=Distance.COSINE),
         )
 
     # Simple Parallellized/Chunking logic
@@ -42,27 +41,35 @@ def process_and_ingest_document(document_text: str, doc_id: str):
 
     for idx, chunk in enumerate(chunks):
         chunk_id = str(uuid.uuid4())
-        
+
         # 1. Embed and prepare Qdrant Point
         vector = embeddings_model.embed_query(chunk)
-        points.append(PointStruct(
-            id=chunk_id,
-            vector=vector,
-            payload={"doc_id": doc_id, "text": chunk, "chunk_index": idx}
-        ))
+        points.append(
+            PointStruct(
+                id=chunk_id,
+                vector=vector,
+                payload={"doc_id": doc_id, "text": chunk, "chunk_index": idx},
+            )
+        )
 
         # 2. Extract Entities using spaCy for Neo4j Graph
         chunk_doc = nlp(chunk)
         entities = [ent.text.strip() for ent in chunk_doc.ents]
-        
+
         # Build simple graph relationships (Entity -> CONTAINED_IN -> Chunk)
         for entity in entities:
-            triples.append({
-                "entity": entity,
-                "label": chunk_doc.char_span(0, len(chunk)).text if len(entities) > 0 else "Concept",
-                "chunk_id": chunk_id,
-                "text": chunk
-            })
+            triples.append(
+                {
+                    "entity": entity,
+                    "label": (
+                        chunk_doc.char_span(0, len(chunk)).text
+                        if len(entities) > 0
+                        else "Concept"
+                    ),
+                    "chunk_id": chunk_id,
+                    "text": chunk,
+                }
+            )
 
     # Batch Insert Vectors into Qdrant
     if points:
@@ -79,4 +86,8 @@ def process_and_ingest_document(document_text: str, doc_id: str):
     with neo4j_driver.session() as session:
         session.run(cypher_query, triples=triples)
 
-    return {"status": "SUCCESS", "chunks_processed": len(chunks), "entities_extracted": len(triples)}
+    return {
+        "status": "SUCCESS",
+        "chunks_processed": len(chunks),
+        "entities_extracted": len(triples),
+    }
