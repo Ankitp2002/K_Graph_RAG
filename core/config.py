@@ -27,14 +27,8 @@ class Settings(BaseSettings):
     CELERY_BROKER_URL: str = "redis://localhost:6379/0"
     CELERY_RESULT_BACKEND: str = "redis://localhost:6379/0"
 
+    GOOGLE_API_KEY: str
+    GROQ_API_KEY: str
+
     class Config:
         env_file = ".env"
-
-
-settings = Settings()
-
-# Export LangSmith variables to environment for automatic tracing
-os.environ["LANGCHAIN_TRACING_V2"] = settings.LANGCHAIN_TRACING_V2
-os.environ["LANGCHAIN_ENDPOINT"] = settings.LANGCHAIN_ENDPOINT
-os.environ["LANGCHAIN_API_KEY"] = settings.LANGCHAIN_API_KEY
-os.environ["LANGCHAIN_PROJECT"] = settings.LANGCHAIN_PROJECT

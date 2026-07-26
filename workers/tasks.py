@@ -1,24 +1,25 @@
-import spacy
 from celery import Celery
 from qdrant_client.models import VectorParams, Distance, PointStruct
 import uuid
-from langchain_huggingface import HuggingFaceEmbeddings
-from core.config import settings
-from db.connections import qdrant_client, neo4j_driver
+from core.config import Settings
+from qdrant_client import QdrantClient
+from neo4j import GraphDatabase
 
+settings = Settings()
 celery_app = Celery(
     "tasks", broker=settings.CELERY_BROKER_URL, backend=settings.CELERY_RESULT_BACKEND
 )
 
-# Load spaCy NLP model for Local Entity Recognition
-nlp = spacy.load("en_core_web_sm")
-embeddings_model = HuggingFaceEmbeddings(
-    model_name="sentence-transformers/all-MiniLM-L6-v2"
-)
-
 
 @celery_app.task(name="process_and_ingest_document")
-def process_and_ingest_document(document_text: str, doc_id: str):
+def process_and_ingest_document(
+    document_text: str,
+    doc_id: str,
+    nlp,
+    embeddings_model,
+    qdrant_client: QdrantClient,
+    neo4j_driver: GraphDatabase,
+):
     """
     1. Parse & Chunk Document
     2. Extract Entities & Triples using spaCy NER
