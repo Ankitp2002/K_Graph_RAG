@@ -2,8 +2,7 @@ import spacy
 from celery import Celery
 from qdrant_client.models import VectorParams, Distance, PointStruct
 import uuid
-from langchain_openai import OpenAIEmbeddings
-
+from langchain_huggingface import HuggingFaceEmbeddings
 from core.config import settings
 from db.connections import qdrant_client, neo4j_driver
 
@@ -13,7 +12,9 @@ celery_app = Celery(
 
 # Load spaCy NLP model for Local Entity Recognition
 nlp = spacy.load("en_core_web_sm")
-embeddings_model = OpenAIEmbeddings(model="text-embedding-3-small")
+embeddings_model = HuggingFaceEmbeddings(
+    model_name="sentence-transformers/all-MiniLM-L6-v2"
+)
 
 
 @celery_app.task(name="process_and_ingest_document")

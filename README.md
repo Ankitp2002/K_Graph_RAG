@@ -27,8 +27,8 @@
         +------------+ +------------+                         |     API      |
                                                               +--------------+
 
-
 uv sync
 .venv\Script\activate
 
 uv run server.py
+celery -A workers.tasks worker --loglevel=info --concurrency=1
