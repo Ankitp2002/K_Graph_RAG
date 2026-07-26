@@ -1,11 +1,12 @@
-from fastapi import APIRouter, BackgroundTasks, HTTPException, UploadFile, File
+from fastapi import APIRouter, HTTPException, UploadFile, File
 import uuid
 
-from app.models.schemas import QueryRequest, QueryResponse, IngestionResponse
-from app.workers.tasks import process_and_ingest_document
-from app.services.retrieval_engine import RetrievalRoutingEngine
+from .schemas import QueryRequest, QueryResponse, IngestionResponse
+from workers.tasks import process_and_ingest_document
+from services.retrieval_engine import RetrievalRoutingEngine
 
 router = APIRouter()
+
 
 @router.post("/ingest", response_model=IngestionResponse)
 async def ingest_document(file: UploadFile = File(...)):
@@ -13,16 +14,16 @@ async def ingest_document(file: UploadFile = File(...)):
     try:
         content = (await file.read()).decode("utf-8")
         doc_id = str(uuid.uuid4())
-        
+
         # Async dispatch to Celery
         task = process_and_ingest_document.delay(content, doc_id)
-        
+
         return IngestionResponse(
-            task_id=task.id, 
-            message="Document ingestion job dispatched successfully."
+            task_id=task.id, message="Document ingestion job dispatched successfully."
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.post("/query", response_model=QueryResponse)
 async def query_rag(request: QueryRequest):
@@ -33,7 +34,7 @@ async def query_rag(request: QueryRequest):
             question=request.question,
             answer=result["answer"],
             vector_context=result["vector_context"],
-            graph_context=result["graph_context"]
+            graph_context=result["graph_context"],
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

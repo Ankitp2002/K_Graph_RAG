@@ -4,8 +4,8 @@ from qdrant_client.models import VectorParams, Distance, PointStruct
 import uuid
 from langchain_openai import OpenAIEmbeddings
 
-from app.core.config import settings
-from app.db.connections import qdrant_client, neo4j_driver
+from core.config import settings
+from db.connections import qdrant_client, neo4j_driver
 
 celery_app = Celery(
     "tasks", broker=settings.CELERY_BROKER_URL, backend=settings.CELERY_RESULT_BACKEND

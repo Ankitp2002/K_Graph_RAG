@@ -26,3 +26,9 @@
         |  VECTOR DB | |  MEMGRAPH  |                         |  NATIVE LLM  |
         +------------+ +------------+                         |     API      |
                                                               +--------------+
+
+
+uv sync
+.venv\Script\activate
+
+uv run server.py
