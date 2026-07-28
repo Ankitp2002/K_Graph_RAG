@@ -2,9 +2,7 @@ from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from apis.reg_routers import __routers__
 from services.llm_manager import LLMManager
-from services.docling_engine import DoclingEngine
 from services.retrieval_engine import RetrievalRoutingEngine
-from db.connections import VectorAndGraphDBConnections
 from core.config import Settings
 
 
@@ -14,15 +12,6 @@ async def lifespan(app: FastAPI):
     llm_manager.initialize()
     app.state.llm_manager = llm_manager
     app.state.embedding_model = llm_manager.get_embeddings_model()
-    app.state.nlp_model = llm_manager.get_nlp_model()
-
-    docling_engine = DoclingEngine()
-    docling_engine.initialize()
-    app.state.docling_engine = docling_engine
-
-    db_connection = VectorAndGraphDBConnections(app.state.settings)
-    app.state.qdrant_client = db_connection.get_qdrant_client()
-    app.state.neo4j_driver = db_connection.get_neo4j_driver()
 
     app.state.retrieval_engine = RetrievalRoutingEngine(
         embeddings_model=app.state.embedding_model,
@@ -41,7 +30,9 @@ class Server:
 
     def __init__(self):
 
-        self.__app = FastAPI(lifespan=lifespan, title="Knowledge Graph Server")
+        self.__app = FastAPI(
+            lifespan=lifespan, title="Knowledge Graph Server", debug=True
+        )
         self.__app.state.settings = Settings()
 
         # configure routers

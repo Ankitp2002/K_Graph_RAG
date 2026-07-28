@@ -2,24 +2,29 @@ from celery import Celery
 from qdrant_client.models import VectorParams, Distance, PointStruct
 import uuid
 from core.config import Settings
-from qdrant_client import QdrantClient
-from neo4j import GraphDatabase
+from db.connections import VectorAndGraphDBConnections
+from services.llm_manager import LLMManager
+from services.docling_engine import DoclingEngine
 
 settings = Settings()
 celery_app = Celery(
     "tasks", broker=settings.CELERY_BROKER_URL, backend=settings.CELERY_RESULT_BACKEND
 )
 
+db_connection = VectorAndGraphDBConnections(settings)
+qdrant_client = db_connection.get_qdrant_client()
+neo4j_driver = db_connection.get_neo4j_driver()
+
+llm_manager = LLMManager()
+embeddings_model = llm_manager.get_embeddings_model()
+nlp_model = llm_manager.get_nlp_model()
+
+docling_engine = DoclingEngine()
+docling_engine.initialize()
+
 
 @celery_app.task(name="process_and_ingest_document")
-def process_and_ingest_document(
-    document_text: str,
-    doc_id: str,
-    nlp,
-    embeddings_model,
-    qdrant_client: QdrantClient,
-    neo4j_driver: GraphDatabase,
-):
+def process_and_ingest_document(file_path, extension, file_id):
     """
     1. Parse & Chunk Document
     2. Extract Entities & Triples using spaCy NER
@@ -34,8 +39,11 @@ def process_and_ingest_document(
             vectors_config=VectorParams(size=1536, distance=Distance.COSINE),
         )
 
+    # get document_text base on requested expention
+    document_text = ""
+
     # Simple Parallellized/Chunking logic
-    doc = nlp(document_text)
+    doc = nlp_model(document_text)
     chunks = [sent.text.strip() for sent in doc.sents if len(sent.text.strip()) > 10]
 
     points = []
@@ -50,12 +58,12 @@ def process_and_ingest_document(
             PointStruct(
                 id=chunk_id,
                 vector=vector,
-                payload={"doc_id": doc_id, "text": chunk, "chunk_index": idx},
+                payload={"doc_id": file_id, "text": chunk, "chunk_index": idx},
             )
         )
 
         # 2. Extract Entities using spaCy for Neo4j Graph
-        chunk_doc = nlp(chunk)
+        chunk_doc = nlp_model(chunk)
         entities = [ent.text.strip() for ent in chunk_doc.ents]
 
         # Build simple graph relationships (Entity -> CONTAINED_IN -> Chunk)

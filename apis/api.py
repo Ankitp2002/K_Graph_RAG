@@ -5,28 +5,28 @@ import uuid
 from services.retrieval_engine import RetrievalRoutingEngine
 from .schemas import QueryRequest, QueryResponse, IngestionResponse
 from workers.tasks import process_and_ingest_document
+import shutil
+import os
+from ..constant import UPLOAD_DIR
 
 router = APIRouter()
 
 
 @router.post("/ingest", response_model=IngestionResponse)
-async def ingest_document(
+async def singal_file_base_ingest(
     file: UploadFile = File(...), app_state=Depends(get_app_state)
 ):
     """Dispatches Heavy Ingestion Job to Celery Workers"""
     try:
-        content = (await file.read()).decode("utf-8")
-        doc_id = str(uuid.uuid4())
+        file_id = str(uuid.uuid4())
+        extension = os.path.splitext(file.filename)[1].lower()
+        saved_filename = f"{file_id}.{extension}"
+        file_path = os.path.join(UPLOAD_DIR, saved_filename)
 
-        # Async dispatch to Celery
-        nlp = app_state.nlp_model
-        embeddings_model = app_state.embedding_model
-        qdrant_client = app_state.qdrant_client
-        neo4j_driver = app_state.neo4j_driver
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
 
-        task = process_and_ingest_document.delay(
-            content, doc_id, nlp, embeddings_model, qdrant_client, neo4j_driver
-        )
+        task = process_and_ingest_document.delay(file_path, extension, file_id)
 
         return IngestionResponse(
             task_id=task.id, message="Document ingestion job dispatched successfully."
