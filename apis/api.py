@@ -7,7 +7,7 @@ from .schemas import QueryRequest, QueryResponse, IngestionResponse
 from workers.tasks import process_and_ingest_document
 import shutil
 import os
-from ..constant import UPLOAD_DIR
+from constant import UPLOAD_DIR
 
 router = APIRouter()
 
@@ -26,7 +26,7 @@ async def singal_file_base_ingest(
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        task = process_and_ingest_document.delay(file_path, extension, file_id)
+        task = process_and_ingest_document(file_path, extension, file_id)
 
         return IngestionResponse(
             task_id=task.id, message="Document ingestion job dispatched successfully."

@@ -22,8 +22,8 @@
                |  Vectors)    |                                      | (Send final
                |              |                                      |  context)
         +------+-----+ +------+-----+                                |
-        |   QDRANT   | |   NEO4J /  |                         +------+-------+
-        |  VECTOR DB | |  MEMGRAPH  |                         |  NATIVE LLM  |
+        |   QDRANT   | |   NEO4J    |                         +------+-------+
+        |  VECTOR DB | |            |                         |  NATIVE LLM  |
         +------------+ +------------+                         |     API      |
                                                               +--------------+
 

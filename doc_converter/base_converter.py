@@ -1,6 +1,4 @@
 import gc
-from typing import Union
-
 from docling_core.types.doc.document import (
     TableItem,
     PictureItem,
@@ -9,9 +7,149 @@ from docling_core.types.doc.document import (
 )
 from pathlib import Path
 from constant import IMAGE_OUTPUT_DIR
+from utils import handle_err
+import os
+import pypdfium2
+from constant import UNSTRUCTURED_UNSTRUCTURED_DOCUMENT_CONVERT_CHUNK_SIZE
+import zipfile
+from docx import Document as docx_doc
+from lxml import etree
+import pandas as pd
+import pickle
 
 
-class BaseConverter:
+class UnstructuredConverter:
+    __slot__ = []
+
+    @handle_err
+    def pdf_parse_and_enrich_document(self) -> str:
+        abs_path = os.path.abspath(self.file_path)
+
+        # 1. Inspect the file to count total pages with near-zero RAM usage
+        pdf = pypdfium2.PdfDocument(abs_path)
+        total_pages = len(pdf)
+        del pdf  # Drop reference immediately
+
+        print(f"📄 Processing total of {total_pages} pages in chunked blocks...")
+
+        all_markdown_segments = []
+        fig_counter = 0
+        table_counter = 0
+
+        # 2. Sequential Step-by-Step Chunk Processing
+        for start_page in range(
+            1, total_pages + 1, UNSTRUCTURED_UNSTRUCTURED_DOCUMENT_CONVERT_CHUNK_SIZE
+        ):
+            end_page = min(
+                start_page + UNSTRUCTURED_UNSTRUCTURED_DOCUMENT_CONVERT_CHUNK_SIZE - 1,
+                total_pages,
+            )
+            print(f"⏳ Parsing chunk window: Pages {start_page} to {end_page}...")
+
+            # 4. Export current mutated chunk to Markdown and add to our list
+            chunk_markdown, fig_counter, table_counter = self.__get_mark_down(
+                abs_path, start_page, end_page, table_counter, fig_counter
+            )
+            all_markdown_segments.append(chunk_markdown)
+
+        # 6. Combine all processed slices into a single unified output text
+        final_full_markdown = "\n\n".join(all_markdown_segments)
+
+        return final_full_markdown
+
+    @handle_err
+    @staticmethod
+    def __get_docx_page_count(abs_path: str) -> int:
+        """
+        Extracts the estimated/declared total pages from the Word document's
+        core metadata properties (app.xml) without fully rendering the document.
+        Fallback is 1 if the property isn't found.
+        """
+        try:
+            with zipfile.ZipFile(abs_path) as zf:
+                if "docProps/app.xml" in zf.namelist():
+                    xml_content = zf.read("docProps/app.xml")
+                    root = etree.fromstring(xml_content)
+                    # Find the <Pages> tag in the app.xml
+                    pages_elem = root.find("{http://openxmlformats.org}Pages")
+                    if pages_elem is not None and pages_elem.text:
+                        return int(pages_elem.text)
+        except Exception as e:
+            print(f"⚠️ Could not read docProps/app.xml: {e}")
+
+        # Fallback to counting paragraphs if metadata is unavailable
+        try:
+            doc = docx_doc(abs_path)
+            page_count = sum(p.contains_page_break for p in doc.paragraphs) + 1
+            return page_count
+        except Exception:
+            return 1
+
+    @handle_err
+    def docx_parse_and_enrich_document(self) -> str:
+        abs_path = os.path.abspath(self.file_path)
+
+        # 1. Count the pages dynamically using DOCX metadata
+        total_pages = self.__get_docx_page_count(abs_path)
+
+        print(f"Processing total of {total_pages} estimated pages in chunked blocks...")
+
+        all_markdown_segments = []
+        fig_counter = 0
+        table_counter = 0
+
+        # 2. Sequential Step-by-Step Chunk Processing
+        for start_page in range(
+            1, total_pages + 1, UNSTRUCTURED_UNSTRUCTURED_DOCUMENT_CONVERT_CHUNK_SIZE
+        ):
+            end_page = min(
+                start_page + UNSTRUCTURED_UNSTRUCTURED_DOCUMENT_CONVERT_CHUNK_SIZE - 1,
+                total_pages,
+            )
+            print(f"⏳ Parsing chunk window: Pages {start_page} to {end_page}...")
+
+            # 4. Export current mutated chunk to Markdown and add to our list
+            chunk_markdown, fig_counter, table_counter = self.__get_mark_down(
+                abs_path, start_page, end_page, table_counter, fig_counter
+            )
+            all_markdown_segments.append(chunk_markdown)
+
+        # 6. Combine all processed slices into a single unified output text
+        final_full_markdown = "\n\n".join(all_markdown_segments)
+
+        return final_full_markdown
+
+
+class StructuredConverter:
+    __slot__ = []
+
+    def __init__(self, file_path, file_name):
+        self.file_path = file_path
+        self.file_name = file_name
+
+    @handle_err
+    def csv_parse_and_enrich_document(self) -> list:
+        df = pd.read_csv(self.file_path)
+        df.to_pickle(self.file_name)
+        return [{"sheet_name": "default", "header": df.columns.tolist()}]
+
+    @handle_err
+    def excel_parse_and_enrich_document(self) -> list:
+        df = pd.read_excel(self.file_path, sheet_name=None)
+
+        meta_info = []
+        for sheet_name, sheet_df in df.items():
+            meta_info.append(
+                {"sheet_name": sheet_name, "header": sheet_df.columns.tolist()}
+            )
+
+        with open(self.file_name, "wb") as f:
+            pickle.dump(df, f)
+
+        return meta_info
+
+
+class BaseConverter(UnstructuredConverter, StructuredConverter):
     __slot__ = []
 
     def __init__(self, file_path, extention, llm_instance, docling_converter):
@@ -20,7 +158,8 @@ class BaseConverter:
         self.llm_instance = llm_instance
         self.docling_converter = docling_converter
 
-    def replace_image_table_with_summary(
+    @handle_err
+    def __replace_image_table_with_summary(
         self, doc, element, table_counter, fig_counter, abs_path
     ) -> tuple[int, ...]:
         # Maintain correct index across chunks
@@ -78,7 +217,8 @@ class BaseConverter:
         element.image.pil_image.close()
         return fig_counter, table_counter
 
-    def get_mark_down(
+    @handle_err
+    def __get_mark_down(
         self,
         abs_path: str,
         start_page: int,
@@ -104,8 +244,10 @@ class BaseConverter:
                     and element.image
                     and hasattr(element.image, "pil_image")
                 ):
-                    fig_counter, table_counter = self.replace_image_table_with_summary(
-                        doc, element, table_counter, fig_counter, abs_path
+                    fig_counter, table_counter = (
+                        self.__replace_image_table_with_summary(
+                            doc, element, table_counter, fig_counter, abs_path
+                        )
                     )
 
         markdown = doc.export_to_markdown()
@@ -115,3 +257,20 @@ class BaseConverter:
         gc.collect()
 
         return markdown, fig_counter, table_counter
+
+    @handle_err
+    def parse_and_enrich_document(self) -> tuple[str, list]:
+        if self.extention == ".pdf":
+            markdown = self.pdf_parse_and_enrich_document()
+            return markdown, []
+        elif self.extention == ".docx":
+            markdown = self.docx_parse_and_enrich_document()
+            return markdown, []
+        elif self.extention == ".csv":
+            meta_info = self.csv_parse_and_enrich_document()
+            return "", meta_info
+        elif self.extention in [".xls", ".xlsx"]:
+            meta_info = self.excel_parse_and_enrich_document()
+            return "", meta_info
+        else:
+            raise ValueError(f"Unsupported file extension: {self.extention}")

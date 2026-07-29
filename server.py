@@ -4,6 +4,7 @@ from apis.reg_routers import __routers__
 from services.llm_manager import LLMManager
 from services.retrieval_engine import RetrievalRoutingEngine
 from core.config import Settings
+from db.connections import VectorAndGraphDBConnections
 
 
 @asynccontextmanager
@@ -12,6 +13,10 @@ async def lifespan(app: FastAPI):
     llm_manager.initialize()
     app.state.llm_manager = llm_manager
     app.state.embedding_model = llm_manager.get_embeddings_model()
+
+    db_connection = VectorAndGraphDBConnections(app.state.settings)
+    app.state.qdrant_client = db_connection.get_qdrant_client()
+    app.state.neo4j_driver = db_connection.get_neo4j_driver()
 
     app.state.retrieval_engine = RetrievalRoutingEngine(
         embeddings_model=app.state.embedding_model,

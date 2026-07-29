@@ -5,6 +5,7 @@ from core.config import Settings
 from db.connections import VectorAndGraphDBConnections
 from services.llm_manager import LLMManager
 from services.docling_engine import DoclingEngine
+from doc_converter.base_converter import BaseConverter
 
 settings = Settings()
 celery_app = Celery(
@@ -21,6 +22,13 @@ nlp_model = llm_manager.get_nlp_model()
 
 docling_engine = DoclingEngine()
 docling_engine.initialize()
+
+markdown_converter = BaseConverter(
+    llm_instance=llm_manager,
+    docling_converter=docling_engine,
+    file_path="",
+    extention="",
+)
 
 
 @celery_app.task(name="process_and_ingest_document")
@@ -40,7 +48,9 @@ def process_and_ingest_document(file_path, extension, file_id):
         )
 
     # get document_text base on requested expention
-    document_text = ""
+    markdown_converter.file_path = file_path
+    markdown_converter.extention = extension
+    document_text, _ = markdown_converter.parse_and_enrich_document()
 
     # Simple Parallellized/Chunking logic
     doc = nlp_model(document_text)
