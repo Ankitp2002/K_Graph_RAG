@@ -8,9 +8,9 @@ from services.docling_engine import DoclingEngine
 from doc_converter.base_converter import BaseConverter
 
 settings = Settings()
-celery_app = Celery(
-    "tasks", broker=settings.CELERY_BROKER_URL, backend=settings.CELERY_RESULT_BACKEND
-)
+# celery_app = Celery(
+#     "tasks", broker=settings.CELERY_BROKER_URL, backend=settings.CELERY_RESULT_BACKEND
+# )
 
 db_connection = VectorAndGraphDBConnections(settings)
 qdrant_client = db_connection.get_qdrant_client()
@@ -31,7 +31,7 @@ markdown_converter = BaseConverter(
 )
 
 
-@celery_app.task(name="process_and_ingest_document")
+# @celery_app.task(name="process_and_ingest_document")
 def process_and_ingest_document(file_path, extension, file_id):
     """
     1. Parse & Chunk Document
@@ -111,3 +111,8 @@ def process_and_ingest_document(file_path, extension, file_id):
         "chunks_processed": len(chunks),
         "entities_extracted": len(triples),
     }
+
+
+process_and_ingest_document(
+    r"C:\\Users\\ANKIT PRAJAPATI\\Downloads\\Profile (1).pdf", ".pdf", "test_file_id"
+)
