@@ -44,7 +44,7 @@ def process_and_ingest_document(file_path, extension, file_id):
     if settings.QDRANT_COLLECTION not in collections:
         qdrant_client.create_collection(
             collection_name=settings.QDRANT_COLLECTION,
-            vectors_config=VectorParams(size=1536, distance=Distance.COSINE),
+            vectors_config=VectorParams(size=1024, distance=Distance.COSINE),
         )
 
     # get document_text base on requested expention
