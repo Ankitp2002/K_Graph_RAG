@@ -34,9 +34,13 @@ class LLMManager:
 
     def get_embeddings_model(self):
         ## Return embeddings model
+        # return HuggingFaceEmbeddings(
+        #     model_name="BAAI/BGE-large-en-v1.5"
+        # ) # fine turn for specific retrival
+
         return HuggingFaceEmbeddings(
-            model_name="sentence-transformers/all-MiniLM-L6-v2"
-        )
+            model_name="intfloat/e5-large-v2"
+        )  # for general purpose retrival (symmetic and asymmetic embedding)
 
     def get_nlp_model(self):
         # Load spaCy NLP model for Local Entity Recognition

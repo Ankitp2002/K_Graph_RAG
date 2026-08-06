@@ -34,7 +34,8 @@ docker run -d \
     --publish=7474:7474 \
     --publish=7687:7687 \
     --volume="$DATA_DIR":/data \
+    --env NEO4J_AUTH=neo4j/password123 \
     "$IMAGE_NAME"
 
 echo "Neo4j is up and running!"
-echo "Neo4j dashboard localhost:7687"
+echo "Neo4j dashboard localhost:7474/browser/"

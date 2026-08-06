@@ -1,13 +1,14 @@
+import sys
+
 from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
 from services.llm_manager import LLMManager
 from .dependency import get_app_state
 import uuid
 from services.retrieval_engine import RetrievalRoutingEngine
 from .schemas import QueryRequest, QueryResponse, IngestionResponse
-from workers.tasks import process_and_ingest_document
-import shutil
 import os
 from constant import UPLOAD_DIR
+import subprocess
 
 router = APIRouter()
 
@@ -19,17 +20,21 @@ async def singal_file_base_ingest(
     """Dispatches Heavy Ingestion Job to Celery Workers"""
     try:
         file_id = str(uuid.uuid4())
-        extension = os.path.splitext(file.filename)[1].lower()
-        saved_filename = f"{file_id}.{extension}"
-        file_path = os.path.join(UPLOAD_DIR, saved_filename)
+        file_path = os.path.join(UPLOAD_DIR, f"{file_id}_{file.filename}")
 
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+        async with open(file_path, "wb") as buffer:
+            # Read the file data in chunks (good for large files)
+            content = await file.read()
+            buffer.write(content)
 
-        task = process_and_ingest_document(file_path, extension, file_id)
+        subprocess.Popen(
+            ["python", "-m", "workers.tasks", file_path, file_id], shell=sys.executable
+        )
 
         return IngestionResponse(
-            task_id=task.id, message="Document ingestion job dispatched successfully."
+            message="Document ingestion job dispatched successfully.{} File ID: {}".format(
+                file.filename, file_id
+            )
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
