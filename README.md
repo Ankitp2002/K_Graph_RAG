@@ -1,3 +1,4 @@
+### Prototype — This can be further extended based on requirements.
 # Knowladge Graph RAG
 
                 [User App / UI]
