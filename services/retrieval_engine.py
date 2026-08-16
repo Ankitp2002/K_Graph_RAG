@@ -112,7 +112,7 @@ class RetrievalRoutingEngine:
 
         return graph_results
 
-    def compute_cosine_similarity(vec1: list, vec2: list) -> float:
+    def compute_cosine_similarity(self, vec1: list, vec2: list) -> float:
         a = np.array(vec1)
         b = np.array(vec2)
         return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
@@ -126,9 +126,10 @@ class RetrievalRoutingEngine:
             # Option: Embed chunk text or compute score to check relevance
             chunk_vector = self.embeddings_model.embed_query(g["text"])
             similarity = self.compute_cosine_similarity(query_vector, chunk_vector)
+            g["score"] = similarity
 
             # Keep only if it passes a relevance bar (e.g., > 0.70)
-            if similarity > 0.70:
+            if similarity > 0.75:
                 filtered_graph_results.append(g)
         return filtered_graph_results
 
