@@ -47,7 +47,7 @@ class UnstructuredConverter:
             print(f"⏳ Parsing chunk window: Pages {start_page} to {end_page}...")
 
             # 4. Export current mutated chunk to Markdown and add to our list
-            chunk_markdown, fig_counter, table_counter = self.__get_mark_down(
+            chunk_markdown, fig_counter, table_counter = self._get_mark_down(
                 abs_path, start_page, end_page, table_counter, fig_counter
             )
             all_markdown_segments.append(chunk_markdown)
@@ -109,7 +109,7 @@ class UnstructuredConverter:
             print(f"⏳ Parsing chunk window: Pages {start_page} to {end_page}...")
 
             # 4. Export current mutated chunk to Markdown and add to our list
-            chunk_markdown, fig_counter, table_counter = self.__get_mark_down(
+            chunk_markdown, fig_counter, table_counter = self._get_mark_down(
                 abs_path, start_page, end_page, table_counter, fig_counter
             )
             all_markdown_segments.append(chunk_markdown)
@@ -218,7 +218,7 @@ class BaseConverter(UnstructuredConverter, StructuredConverter):
         return fig_counter, table_counter
 
     @handle_err
-    def __get_mark_down(
+    def _get_mark_down(
         self,
         abs_path: str,
         start_page: int,
@@ -227,7 +227,7 @@ class BaseConverter(UnstructuredConverter, StructuredConverter):
         fig_counter: int,
     ) -> tuple[str, int, int]:
         # Pull only this tiny section into RAM
-        result = self.docling_converter.convert(
+        result = self.docling_converter.converter.convert(
             abs_path, raises_on_error=False, page_range=(start_page, end_page)
         )
 

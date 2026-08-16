@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 
-UPLOAD_DIR = "/tmp/celery_uploads"
+UPLOAD_DIR = "/tmp/user_files_uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 # Define a safe chunk window (e.g., 5 pages at a time to prevent RAM spikes)

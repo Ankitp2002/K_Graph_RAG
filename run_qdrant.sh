@@ -21,6 +21,8 @@ if docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
     echo "Container '${CONTAINER_NAME}' exists but is stopped. Starting it..."
     docker start "$CONTAINER_NAME"
     echo "Container '${CONTAINER_NAME}' started successfully."
+    echo "REST API & Web UI: http://localhost:6333/dashboard"
+    echo "gRPC API: localhost:6334"
     exit 0
 fi
 

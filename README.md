@@ -30,8 +30,16 @@
 uv sync
 .venv\Script\activate
 
-uv run server.py
-celery -A workers.tasks worker --loglevel=info --concurrency=1
+# pre run scripts
+
+bash run_qdrant.sh
+bash run_kg_neo4j.sj
+
+uv run main.py
+
+# for temp it not in use case
+
+# celery -A workers.tasks worker --loglevel=info --concurrency=1
 
 ======================================================================
 .env:
