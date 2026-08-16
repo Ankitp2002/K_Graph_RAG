@@ -1,5 +1,5 @@
-### Prototype — This can be further extended based on requirements.
 # Knowladge Graph RAG
+### Prototype — This can be further extended based on requirements.
 
                 [User App / UI]
                       |
