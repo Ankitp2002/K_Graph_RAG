@@ -59,30 +59,39 @@ def process_and_ingest_document(file_path, file_id):
     for idx, chunk in enumerate(chunks):
         chunk_id = str(uuid.uuid4())
 
-        # 1. Embed and prepare Qdrant Point
+        # 1. Extract Entities using spaCy
+        chunk_doc = nlp_model(chunk)
+        # Store entity text and label (e.g., PERSON, ORG)
+        entities_data = [
+            {"name": ent.text.strip(), "type": ent.label_}
+            for ent in chunk_doc.ents
+            if ent.text.strip()
+        ]
+        entity_names = [e["name"] for e in entities_data]
+
+        # 2. Embed Chunk Text
         vector = embeddings_model.embed_query(chunk)
+
+        # 3. Prepare Qdrant Point (Payload includes entity metadata for payload filtering)
         points.append(
             PointStruct(
                 id=chunk_id,
                 vector=vector,
-                payload={"doc_id": file_id, "text": chunk, "chunk_index": idx},
+                payload={
+                    "doc_id": file_id,
+                    "text": chunk,
+                    "chunk_index": idx,
+                    "entities": entity_names,
+                },
             )
         )
 
-        # 2. Extract Entities using spaCy for Neo4j Graph
-        chunk_doc = nlp_model(chunk)
-        entities = [ent.text.strip() for ent in chunk_doc.ents]
-
-        # Build simple graph relationships (Entity -> CONTAINED_IN -> Chunk)
-        for entity in entities:
+        # 4. Prepare Neo4j Triples
+        for ent in entities_data:
             triples.append(
                 {
-                    "entity": entity,
-                    "label": (
-                        chunk_doc.char_span(0, len(chunk)).text
-                        if len(entities) > 0
-                        else "Concept"
-                    ),
+                    "entity": ent["name"],
+                    "type": ent["type"],
                     "chunk_id": chunk_id,
                     "text": chunk,
                 }
@@ -92,16 +101,21 @@ def process_and_ingest_document(file_path, file_id):
     if points:
         qdrant_client.upsert(collection_name=settings.QDRANT_COLLECTION, points=points)
 
-    # Insert Triples into Neo4j
+    # Optimized Dynamic Cypher Insert into Neo4j
     cypher_query = """
     UNWIND $triples AS triple
-    MERGE (e:Entity {name: triple.entity})
     MERGE (c:Chunk {id: triple.chunk_id})
-    SET c.text = triple.text
+    ON CREATE SET c.text = triple.text
+
+    MERGE (e:Entity {name: triple.entity})
+    ON CREATE SET e.type = triple.type
+
     MERGE (e)-[:MENTIONED_IN]->(c)
     """
-    with neo4j_driver.session() as session:
-        session.run(cypher_query, triples=triples)
+
+    if triples:
+        with neo4j_driver.session() as session:
+            session.run(cypher_query, triples=triples)
 
     print(
         {

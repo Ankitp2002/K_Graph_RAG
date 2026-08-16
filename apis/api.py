@@ -9,8 +9,18 @@ from .schemas import QueryRequest, QueryResponse, IngestionResponse
 import os
 from constant import UPLOAD_DIR
 import subprocess
+import aiofiles
 
 router = APIRouter()
+
+
+@router.post("/health", response_model=IngestionResponse)
+async def health_check(app_state=Depends(get_app_state)):
+    """Health Check Endpoint"""
+    try:
+        return IngestionResponse(message="API is healthy and running.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/ingest", response_model=IngestionResponse)
@@ -22,13 +32,21 @@ async def singal_file_base_ingest(
         file_id = str(uuid.uuid4())
         file_path = os.path.join(UPLOAD_DIR, f"{file_id}_{file.filename}")
 
-        async with open(file_path, "wb") as buffer:
-            # Read the file data in chunks (good for large files)
+        async with aiofiles.open(file_path, "wb") as buffer:
             content = await file.read()
-            buffer.write(content)
+            await buffer.write(content)
 
         subprocess.Popen(
-            ["python", "-m", "workers.tasks", file_path, file_id], shell=sys.executable
+            [
+                "python",
+                "-m",
+                "workers.tasks",
+                "--file-path",
+                file_path,
+                "--file-id",
+                file_id,
+            ],
+            shell=sys.executable,
         )
 
         return IngestionResponse(

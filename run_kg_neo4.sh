@@ -21,6 +21,7 @@ if docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
     echo "Container '${CONTAINER_NAME}' exists but is stopped. Starting it..."
     docker start "$CONTAINER_NAME"
     echo "Container '${CONTAINER_NAME}' started successfully."
+    echo "Neo4j dashboard localhost:7474/browser/"
     exit 0
 fi
 

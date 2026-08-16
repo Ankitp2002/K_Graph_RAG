@@ -20,6 +20,7 @@ async def lifespan(app: FastAPI):
 
     app.state.retrieval_engine = RetrievalRoutingEngine(
         embeddings_model=app.state.embedding_model,
+        nlp_model=llm_manager.get_nlp_model(),
         qdrant_client=app.state.qdrant_client,
         neo4j_driver=app.state.neo4j_driver,
         settings=app.state.settings,
@@ -50,10 +51,3 @@ class Server:
     def include_routers(self, routers: list):
         for router in routers:
             self.__app.include_router(router)
-
-
-if __name__ == "__main__":
-    import uvicorn
-
-    server = Server()
-    uvicorn.run(server.app, port=8000)
