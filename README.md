@@ -37,9 +37,10 @@ bash run_kg_neo4j.sj
 
 uv run main.py
 
-# for temp it not in use case
-
-# celery -A workers.tasks worker --loglevel=info --concurrency=1
+"""
+for temp it not in use case
+celery -A workers.tasks worker --loglevel=info --concurrency=1
+"""
 
 ======================================================================
 .env:
