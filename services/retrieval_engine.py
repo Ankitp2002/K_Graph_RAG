@@ -5,7 +5,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langsmith import traceable
 from neo4j import Driver
 from qdrant_client import QdrantClient
-import json
+import numpy as np
 from core.config import Settings
 
 
@@ -105,7 +105,32 @@ class RetrievalRoutingEngine:
                 if item and item.get("chunk_id"):
                     graph_results.append(item)
 
+        graph_results = self.get_filtered_graph_by_compute_cosine_similarity(
+            query_vector=self.embeddings_model.embed_query(query),
+            graph_results=graph_results,
+        )
+
         return graph_results
+
+    def compute_cosine_similarity(vec1: list, vec2: list) -> float:
+        a = np.array(vec1)
+        b = np.array(vec2)
+        return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
+
+    def get_filtered_graph_by_compute_cosine_similarity(
+        self, query_vector: List[float], graph_results: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """Computes cosine similarity between two vectors."""
+        filtered_graph_results = []
+        for g in graph_results:
+            # Option: Embed chunk text or compute score to check relevance
+            chunk_vector = self.embeddings_model.embed_query(g["text"])
+            similarity = self.compute_cosine_similarity(query_vector, chunk_vector)
+
+            # Keep only if it passes a relevance bar (e.g., > 0.70)
+            if similarity > 0.70:
+                filtered_graph_results.append(g)
+        return filtered_graph_results
 
     @traceable(name="Hybrid RAG Pipeline")
     def run_pipeline(self, query: str, top_k_qdrant: int = 3) -> Dict[str, Any]:
@@ -161,9 +186,7 @@ class RetrievalRoutingEngine:
         )
 
         chain = prompt_template | self.llm | StrOutputParser()
-        answer = chain.invoke(
-            {"context": combined_context, "question": query}
-        )
+        answer = chain.invoke({"context": combined_context, "question": query})
 
         return {
             "query": query,
