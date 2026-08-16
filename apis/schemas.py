@@ -8,9 +8,9 @@ class QueryRequest(BaseModel):
 
 class QueryResponse(BaseModel):
     question: str
-    answer: str
-    vector_context: List[str]
-    graph_context: List[Dict[str, Any]]
+    answer: Any
+    vector_context: List[Any]
+    graph_context: List[Any]
 
 
 class IngestionResponse(BaseModel):

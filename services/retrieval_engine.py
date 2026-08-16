@@ -5,7 +5,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langsmith import traceable
 from neo4j import Driver
 from qdrant_client import QdrantClient
-
+import json
 from core.config import Settings
 
 
@@ -161,7 +161,9 @@ class RetrievalRoutingEngine:
         )
 
         chain = prompt_template | self.llm | StrOutputParser()
-        answer = chain.invoke({"context": combined_context, "question": query})
+        answer = chain.invoke(
+            {"context": combined_context, "question": query}
+        )
 
         return {
             "query": query,
