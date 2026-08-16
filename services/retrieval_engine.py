@@ -74,6 +74,7 @@ class RetrievalRoutingEngine:
         // B. Graph expansion: Traversal from seed chunks through shared entities to connected chunks
         OPTIONAL MATCH (c_seed:Chunk)
         WHERE c_seed.id IN $seed_ids
+        
         OPTIONAL MATCH (c_seed)<-[:MENTIONED_IN]-(e_shared:Entity)-[:MENTIONED_IN]->(c_expanded:Chunk)
         WHERE NOT c_expanded.id IN $seed_ids
 
@@ -84,6 +85,7 @@ class RetrievalRoutingEngine:
                 via: e_query.name, 
                 type: 'entity_match'
             }) AS entity_matched_chunks,
+            
             COLLECT(DISTINCT {
                 chunk_id: c_expanded.id, 
                 text: c_expanded.text, 
